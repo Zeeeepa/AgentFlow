@@ -34,9 +34,12 @@ class ChatAnthropic(EngineLM, CachedEngine):
         if os.getenv("ANTHROPIC_API_KEY") is None:
             raise ValueError("Please set the ANTHROPIC_API_KEY environment variable if you'd like to use Anthropic models.")
         
-        self.client = Anthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
-        )
+        # Support custom base URLs (e.g., for Z.AI)
+        client_kwargs = {"api_key": os.getenv("ANTHROPIC_API_KEY")}
+        if os.getenv("ANTHROPIC_BASE_URL"):
+            client_kwargs["base_url"] = os.getenv("ANTHROPIC_BASE_URL")
+        
+        self.client = Anthropic(**client_kwargs)
         self.model_string = model_string
         self.system_prompt = system_prompt
         assert isinstance(self.system_prompt, str)

@@ -32,8 +32,9 @@ from typing import Dict, Any, List
 
 # Add project to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../agentflow")))
 
-from agentflow.agentflow.solver import construct_solver
+from agentflow.solver import construct_solver
 from dotenv import load_dotenv
 
 # Load environment
@@ -548,4 +549,3 @@ if __name__ == "__main__":
         asyncio.run(test_simple_workflow())
     else:
         asyncio.run(main())
-

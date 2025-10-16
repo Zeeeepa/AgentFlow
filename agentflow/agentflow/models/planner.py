@@ -16,7 +16,8 @@ class Planner:
         self.llm_engine_name = llm_engine_name
         self.is_multimodal = is_multimodal
         # self.llm_engine_mm = create_llm_engine(model_string=llm_engine_name, is_multimodal=False, base_url=base_url, temperature = temperature)
-        self.llm_engine_fixed = create_llm_engine(model_string="dashscope", is_multimodal=False, temperature = temperature)
+        # Fixed: use llm_engine_name instead of hardcoded "dashscope"
+        self.llm_engine_fixed = create_llm_engine(model_string=llm_engine_name, is_multimodal=False, temperature = temperature)
         self.llm_engine = create_llm_engine(model_string=llm_engine_name, is_multimodal=False, base_url=base_url, temperature = temperature)
         self.toolbox_metadata = toolbox_metadata if toolbox_metadata is not None else {}
         self.available_tools = available_tools if available_tools is not None else []
@@ -554,4 +555,3 @@ Output Structure:
         # final_output = self.llm_engine_mm(input_data)
 
         return final_output
-

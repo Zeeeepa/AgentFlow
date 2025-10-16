@@ -70,14 +70,11 @@ def create_llm_engine(model_string: str, use_cache: bool = False, is_multimodal:
         if "ANTHROPIC_API_KEY" not in os.environ:
             raise ValueError("Please set the ANTHROPIC_API_KEY environment variable.")
 
-        # Anthropic supports: temperature, top_p, top_k — NOT frequency/presence_penalty
+        # Anthropic: temperature/top_p/top_k are passed to generate(), not __init__()
         config = {
             "model_string": model_string,
             "use_cache": use_cache,
             "is_multimodal": is_multimodal,
-            "temperature": kwargs.get("temperature", 0.7),
-            "top_p": kwargs.get("top_p", 0.9),
-            "top_k": kwargs.get("top_k", 50),  # optional
         }
         return ChatAnthropic(**config)
 
