@@ -75,11 +75,15 @@ def create_planner_agent(llm_model: str = "claude-3-5-sonnet"):
     """
     Agent 1: Query Planner
     Generates 3-5 specific search queries from a user's research question
+    
+    Tools:
+    - Base_Generator_Tool: Strategic planning and query generation
+    - Wikipedia_Search_Tool: Quick reference for topic understanding
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Wikipedia_Search_Tool"],
+        tool_engine=["self", "Default"],
         verbose=False
     )
 
@@ -89,11 +93,16 @@ def create_researcher_agent():
     Agent 2: Researcher
     Executes web searches using Tavily and gathers raw data
     Dependencies: planner
+    
+    Tools:
+    - Google_Search_Tool: Real-time web search for current information
+    - Web_Search_Tool: Comprehensive web RAG search
+    - Wikipedia_Search_Tool: Factual baseline information
     """
     return construct_solver(
         llm_engine_name="claude-3-5-sonnet",
-        enabled_tools=["Google_Search_Tool", "Web_Search_Tool"],
-        tool_engine=["Default", "Default"],
+        enabled_tools=["Google_Search_Tool", "Web_Search_Tool", "Wikipedia_Search_Tool"],
+        tool_engine=["Default", "Default", "Default"],
         verbose=False
     )
 
@@ -103,11 +112,15 @@ def create_cleaner_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 3: Data Cleaner
     Consolidates and cleans raw research data
     Dependencies: researcher
+    
+    Tools:
+    - Base_Generator_Tool: Data processing and consolidation
+    - Python_Coder_Tool: Data cleaning scripts and text processing
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Python_Coder_Tool"],
+        tool_engine=["self", "Default"],
         verbose=False
     )
 
@@ -117,11 +130,16 @@ def create_extractor_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 4: Fact Extractor
     Extracts key, verifiable facts from cleaned data
     Dependencies: cleaner
+    
+    Tools:
+    - Base_Generator_Tool: Fact identification and extraction
+    - Python_Coder_Tool: Pattern matching and structured data extraction
+    - Wikipedia_Search_Tool: Fact verification against reliable sources
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Python_Coder_Tool", "Wikipedia_Search_Tool"],
+        tool_engine=["self", "Default", "Default"],
         verbose=False
     )
 
@@ -131,11 +149,15 @@ def create_identifier_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 5: Bias Identifier
     Identifies potential biases in the research data
     Dependencies: cleaner
+    
+    Tools:
+    - Base_Generator_Tool: Bias analysis and critical thinking
+    - Web_Search_Tool: Cross-reference perspectives from multiple sources
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Web_Search_Tool"],
+        tool_engine=["self", "Default"],
         verbose=False
     )
 
@@ -145,11 +167,15 @@ def create_analyzer_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 6: Sentiment Analyzer
     Analyzes overall sentiment of the research data
     Dependencies: cleaner
+    
+    Tools:
+    - Base_Generator_Tool: Sentiment analysis and opinion mining
+    - Python_Coder_Tool: Sentiment scoring and statistical analysis
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Python_Coder_Tool"],
+        tool_engine=["self", "Default"],
         verbose=False
     )
 
@@ -159,11 +185,17 @@ def create_checker_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 7: Fact Checker
     Verifies extracted facts (simulated verification)
     Dependencies: extractor
+    
+    Tools:
+    - Base_Generator_Tool: Critical fact verification
+    - Wikipedia_Search_Tool: Verify against reliable encyclopedic sources
+    - Web_Search_Tool: Cross-reference with multiple authoritative sources
+    - Google_Search_Tool: Find recent verification sources
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Wikipedia_Search_Tool", "Web_Search_Tool", "Google_Search_Tool"],
+        tool_engine=["self", "Default", "Default", "Default"],
         verbose=False
     )
 
@@ -173,11 +205,15 @@ def create_generator_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 8: Argument Generator
     Synthesizes key arguments from verified facts, bias notes, and sentiment
     Dependencies: checker, identifier, analyzer
+    
+    Tools:
+    - Base_Generator_Tool: Argument synthesis and logical reasoning
+    - Python_Coder_Tool: Structured argument organization
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Python_Coder_Tool"],
+        tool_engine=["self", "Default"],
         verbose=False
     )
 
@@ -187,11 +223,15 @@ def create_writer_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 9: Report Writer
     Writes comprehensive, well-structured report from arguments
     Dependencies: generator
+    
+    Tools:
+    - Base_Generator_Tool: Professional writing and report structuring
+    - Python_Coder_Tool: Document formatting and template generation
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Python_Coder_Tool"],
+        tool_engine=["self", "Default"],
         verbose=False
     )
 
@@ -201,11 +241,15 @@ def create_proofreader_agent(llm_model: str = "claude-3-5-sonnet"):
     Agent 10: Proofreader
     Polishes final report for grammar, clarity, and professionalism
     Dependencies: writer
+    
+    Tools:
+    - Base_Generator_Tool: Grammar checking and language refinement
+    - Python_Coder_Tool: Text analysis and quality metrics
     """
     return construct_solver(
         llm_engine_name=llm_model,
-        enabled_tools=["Base_Generator_Tool"],
-        tool_engine=["self"],
+        enabled_tools=["Base_Generator_Tool", "Python_Coder_Tool"],
+        tool_engine=["self", "Default"],
         verbose=False
     )
 
