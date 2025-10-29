@@ -84,7 +84,7 @@ For optimal results with the {TOOL_NAME}:
 
 class Python_Coder_Tool(BaseTool):
     require_llm_engine = True
-    def __init__(self, model_string="dashscope-qwen2.5-coder-7b-instruct"):
+    def __init__(self, model_string="claude-3-5-sonnet"):
         super().__init__(
             tool_name=TOOL_NAME,
             tool_description="A tool that generates and executes simple Python code snippets for basic arithmetical calculations and math-related problems. The generated code runs in a highly restricted environment with only basic mathematical operations available.",
@@ -112,17 +112,17 @@ class Python_Coder_Tool(BaseTool):
             }
         )
         print(f"Initializing Python_Coder_Tool with model_string: {model_string}")
-        # self.llm_engine = create_llm_engine(model_string=model_string, is_multimodal=False, base_url=base_url) if model_string else None
 
-        # NOTE: deterministic mode
+        # Use Anthropic API (Z.AI) instead of OpenAI
         self.llm_engine = create_llm_engine(
-            model_string=model_string, 
-            is_multimodal=False, 
-            temperature=0.0, 
-            top_p=1.0, 
-            frequency_penalty=0.0, 
+            model_string=model_string,
+            is_multimodal=False,
+            base_url=os.getenv("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic"),
+            temperature=0.0,
+            top_p=1.0,
+            frequency_penalty=0.0,
             presence_penalty=0.0
-            ) if model_string else None
+        ) if model_string else None
 
     @staticmethod
     def preprocess_code(code):

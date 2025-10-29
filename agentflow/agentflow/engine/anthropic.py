@@ -34,9 +34,12 @@ class ChatAnthropic(EngineLM, CachedEngine):
         if os.getenv("ANTHROPIC_API_KEY") is None:
             raise ValueError("Please set the ANTHROPIC_API_KEY environment variable if you'd like to use Anthropic models.")
         
-        self.client = Anthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY"),
-        )
+        # Support custom base URLs (e.g., for Z.AI)
+        client_kwargs = {"api_key": os.getenv("ANTHROPIC_API_KEY")}
+        if os.getenv("ANTHROPIC_BASE_URL"):
+            client_kwargs["base_url"] = os.getenv("ANTHROPIC_BASE_URL")
+        
+        self.client = Anthropic(**client_kwargs)
         self.model_string = model_string
         self.system_prompt = system_prompt
         assert isinstance(self.system_prompt, str)
@@ -58,7 +61,7 @@ class ChatAnthropic(EngineLM, CachedEngine):
             return self._generate_from_multiple_input(content, system_prompt=system_prompt, **kwargs)
 
     def _generate_from_single_prompt(
-        self, prompt: str, system_prompt: str=None, temperature=0, max_tokens=2000, top_p=0.99, **kwargs
+        self, prompt: str, system_prompt: str=None, temperature=0, max_tokens=2000, top_p=0.99, response_format=None, **kwargs
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
 
@@ -66,6 +69,12 @@ class ChatAnthropic(EngineLM, CachedEngine):
             cache_or_none = self._check_cache(sys_prompt_arg + prompt)
             if cache_or_none is not None:
                 return cache_or_none
+
+        # Add JSON schema formatting instruction if response_format is specified
+        if response_format is not None:
+            schema = response_format.model_json_schema()
+            schema_str = json.dumps(schema, indent=2)
+            prompt = f"{prompt}\n\nYou must respond with valid JSON that matches this exact schema:\n{schema_str}\n\nIMPORTANT: Return ONLY the JSON object, with no additional text, markdown formatting, or code blocks."
 
         response = self.client.messages.create(
             messages=[
@@ -81,10 +90,27 @@ class ChatAnthropic(EngineLM, CachedEngine):
             top_p=top_p,
         )
 
-        response = response.content[0].text
+        response_text = response.content[0].text
+        
+        # If response_format was specified, try to parse and validate the JSON
+        if response_format is not None:
+            try:
+                # Try to extract JSON from the response if it's wrapped in code blocks
+                if "```json" in response_text:
+                    response_text = response_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in response_text:
+                    response_text = response_text.split("```")[1].split("```")[0].strip()
+                
+                # Parse and validate with the Pydantic model
+                parsed = response_format.model_validate_json(response_text)
+                response_text = parsed.model_dump_json()
+            except Exception as e:
+                print(f"Warning: Failed to parse response as {response_format.__name__}: {e}")
+                print(f"Raw response: {response_text[:500]}...")
+        
         if self.use_cache:
-            self._save_cache(sys_prompt_arg + prompt, response)
-        return response
+            self._save_cache(sys_prompt_arg + prompt, response_text)
+        return response_text
 
     def _format_content(self, content: List[Union[str, bytes]]) -> List[dict]:
         formatted_content = []
@@ -112,10 +138,19 @@ class ChatAnthropic(EngineLM, CachedEngine):
         return formatted_content
 
     def _generate_from_multiple_input(
-        self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=4000, top_p=0.99, **kwargs
+        self, content: List[Union[str, bytes]], system_prompt=None, temperature=0, max_tokens=4000, top_p=0.99, response_format=None, **kwargs
     ):
         sys_prompt_arg = system_prompt if system_prompt else self.system_prompt
         formatted_content = self._format_content(content)
+
+        # Add JSON schema instruction for structured outputs
+        if response_format is not None:
+            schema = response_format.model_json_schema()
+            schema_str = json.dumps(schema, indent=2)
+            formatted_content.append({
+                "type": "text",
+                "text": f"\n\nYou must respond with valid JSON that matches this exact schema:\n{schema_str}\n\nIMPORTANT: Return ONLY the JSON object, with no additional text, markdown formatting, or code blocks."
+            })
 
         if self.use_cache:
             cache_key = sys_prompt_arg + json.dumps(formatted_content)
@@ -135,6 +170,23 @@ class ChatAnthropic(EngineLM, CachedEngine):
         )
 
         response_text = response.content[0].text
+        
+        # If response_format was specified, try to parse and validate the JSON
+        if response_format is not None:
+            try:
+                # Try to extract JSON from the response if it's wrapped in code blocks
+                if "```json" in response_text:
+                    response_text = response_text.split("```json")[1].split("```")[0].strip()
+                elif "```" in response_text:
+                    response_text = response_text.split("```")[1].split("```")[0].strip()
+                
+                # Parse and validate with the Pydantic model
+                parsed = response_format.model_validate_json(response_text)
+                response_text = parsed.model_dump_json()
+            except Exception as e:
+                print(f"Warning: Failed to parse response as {response_format.__name__}: {e}")
+                print(f"Raw response: {response_text[:500]}...")
+        
         if self.use_cache:
             self._save_cache(cache_key, response_text)
         return response_text

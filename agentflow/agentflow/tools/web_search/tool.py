@@ -74,7 +74,7 @@ In the fourth quarter of 2023, the company achieved a total revenue of $5.2 mill
 class Web_Search_Tool(BaseTool):
     require_llm_engine = True
 
-    def __init__(self, model_string="gpt-4o-mini"):
+    def __init__(self, model_string="claude-3-5-sonnet"):
         super().__init__(
             tool_name=TOOL_NAME,
             tool_description="A specialized tool for answering questions by retrieving relevant information from a given website using RAG (Retrieval-Augmented Generation).",
@@ -100,27 +100,24 @@ class Web_Search_Tool(BaseTool):
             }
         )
 
-        # self.model_string = "gpt-4o-mini" # NOTE: strong LLM for tool
-        # self.model_string = "gemini-1.5-flash" # NOTE: weak 8B model for tool
-        # self.model_string = "dashscope" # NOTE: weak Qwen2.5-7B model for tool
-
         self.model_string = model_string
         print(f"Initializing Website RAG Tool with model: {self.model_string}")
         self.chunk_size = 200
         self.chunk_overlap = 20
         self.top_k = 10
-        # self.embeddings_model = "text-embedding-3-large" # or "text-embedding-3-small" for efficiency
+        # Use OpenAI-compatible embeddings (text-embedding-3-small works with many providers)
         self.embeddings_model = "text-embedding-3-small"
         self.max_window_size = 1000000
 
-        # NOTE: deterministic mode
+        # Use Anthropic API (Z.AI) instead of OpenAI
         self.llm_engine = create_llm_engine(
-            model_string=self.model_string, 
-            temperature=0.0, 
-            top_p=1.0, 
-            frequency_penalty=0.0, 
+            model_string=self.model_string,
+            base_url=os.getenv("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic"),
+            temperature=0.0,
+            top_p=1.0,
+            frequency_penalty=0.0,
             presence_penalty=0.0
-            )
+        )
 
     def _get_website_content(self, url):
         """ 

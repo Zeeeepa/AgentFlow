@@ -114,7 +114,7 @@ Output:
         return [], []
 
 class Wikipedia_Search_Tool(BaseTool):
-    def __init__(self, model_string="gpt-4o-mini"):
+    def __init__(self, model_string="claude-3-5-sonnet"):
         super().__init__(
             tool_name=TOOL_NAME,
             tool_description="A tool that searches Wikipedia and returns relevant pages with their page titles, URLs, abstract, and retrieved information based on a given query.",
@@ -142,7 +142,15 @@ class Wikipedia_Search_Tool(BaseTool):
                 "best_practice": BEST_PRACTICE
             }
         )
-        self.llm_engine = create_llm_engine(model_string=model_string, temperature=0.0, top_p=1.0, frequency_penalty=0.0, presence_penalty=0.0)
+        # Use Anthropic API (Z.AI) instead of OpenAI
+        self.llm_engine = create_llm_engine(
+            model_string=model_string,
+            base_url=os.getenv("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic"),
+            temperature=0.0,
+            top_p=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0
+        )
 
     def _get_wikipedia_url(self, query):
         """
