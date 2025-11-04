@@ -110,6 +110,10 @@ Explore more in our [paper](https://arxiv.org/abs/2510.05592) or [project page](
 - [🚀 Contributing](#-contributing)
 
 ## ⚙️ Setup
+
+### Prerequisites
+- **Python 3.11** (recommended)
+
 ### Installation
 ```bash
 bash setup.sh
