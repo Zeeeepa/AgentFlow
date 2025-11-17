@@ -28,7 +28,9 @@ TASKS=(
 # "port:modelname,label,enabled_tools,tool_engines"
 # - enabled_tools: use | as separator (will be converted to comma)
 # - tool_engines: use | as separator (will be converted to comma)
+# - If port is empty (e.g., ":modelname"), base_url will not be passed to solver
 # Example: "8000:vllm-IPF/model,label,Tool1|Tool2|Tool3,engine1|engine2|Default"
+# Example (no vllm): ":openai-gpt-4,GPT-4,Tool1|Tool2,engine1|Default"
 MODELS=(
     "8000:vllm-AgentFlow/agentflow-planner-7b,AgentFlow-7B,Base_Generator_Tool|Python_Coder_Tool|Google_Search_Tool|Wikipedia_Search_Tool,dashscope-qwen2.5-7b-instruct|dashscope-qwen2.5-7b-instruct|Default|Default"
 )
@@ -52,12 +54,23 @@ for MODEL_SPEC in "${MODELS[@]}"; do
     ENABLED_TOOLS=$(echo "$ENABLED_TOOLS_RAW" | tr '|' ',')
     TOOL_ENGINE=$(echo "$TOOL_ENGINE_RAW" | tr '|' ',')
 
-    BASE_URL="http://localhost:${PORT}/v1"
+    # Set BASE_URL only if PORT is not empty
+    if [ -n "$PORT" ]; then
+        BASE_URL="http://localhost:${PORT}/v1"
+        USE_BASE_URL=true
+    else
+        BASE_URL=""
+        USE_BASE_URL=false
+    fi
 
     echo "========================================"
     echo "MODEL: $LLM"
     echo "LABEL: $LABEL"
-    echo "BASE_URL: $BASE_URL"
+    if [ "$USE_BASE_URL" = true ]; then
+        echo "BASE_URL: $BASE_URL"
+    else
+        echo "BASE_URL: Not used (using default API endpoint)"
+    fi
     echo "ENABLED_TOOLS: $ENABLED_TOOLS"
     echo "TOOL_ENGINE: $TOOL_ENGINE"
     echo "========================================"
@@ -115,26 +128,46 @@ for MODEL_SPEC in "${MODELS[@]}"; do
             run_task() {
                 local i=$1
                 echo "Running $TASK for index $i"
-                python solve.py \
-                --index $i \
-                --task $TASK \
-                --data_file $DATA_FILE \
-                --llm_engine_name $LLM \
-                --root_cache_dir $CACHE_DIR \
-                --output_json_dir $OUT_DIR \
-                --output_types direct \
-                --enabled_tools "$ENABLED_TOOLS" \
-                --tool_engine "$TOOL_ENGINE" \
-                --max_time 300 \
-                --max_steps 10 \
-                --temperature 0.7 \
-                --base_url "$BASE_URL" \
-                2>&1 | tee "$LOG_DIR/$i.log"
+
+                # Build command with conditional base_url parameter
+                if [ "$USE_BASE_URL" = true ]; then
+                    python solve.py \
+                    --index $i \
+                    --task $TASK \
+                    --data_file $DATA_FILE \
+                    --llm_engine_name $LLM \
+                    --root_cache_dir $CACHE_DIR \
+                    --output_json_dir $OUT_DIR \
+                    --output_types direct \
+                    --enabled_tools "$ENABLED_TOOLS" \
+                    --tool_engine "$TOOL_ENGINE" \
+                    --max_time 300 \
+                    --max_steps 10 \
+                    --temperature 0.7 \
+                    --base_url "$BASE_URL" \
+                    2>&1 | tee "$LOG_DIR/$i.log"
+                else
+                    python solve.py \
+                    --index $i \
+                    --task $TASK \
+                    --data_file $DATA_FILE \
+                    --llm_engine_name $LLM \
+                    --root_cache_dir $CACHE_DIR \
+                    --output_json_dir $OUT_DIR \
+                    --output_types direct \
+                    --enabled_tools "$ENABLED_TOOLS" \
+                    --tool_engine "$TOOL_ENGINE" \
+                    --max_time 300 \
+                    --max_steps 10 \
+                    --temperature 0.7 \
+                    2>&1 | tee "$LOG_DIR/$i.log"
+                fi
+
                 echo "Completed $TASK for index $i"
                 echo "------------------------"
             }
             export -f run_task
-            export TASK DATA_FILE LOG_DIR OUT_DIR CACHE_DIR LLM ENABLED_TOOLS TOOL_ENGINE BASE_URL
+            export TASK DATA_FILE LOG_DIR OUT_DIR CACHE_DIR LLM ENABLED_TOOLS TOOL_ENGINE BASE_URL USE_BASE_URL
 
             echo "Starting parallel execution for $TASK..."
             parallel -j $THREADS run_task ::: "${indices[@]}"
