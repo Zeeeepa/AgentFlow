@@ -23,7 +23,16 @@ LOG_SIZE='1M'
 # 4. Define the maximum number of log files to keep (mimics backupCount behavior)
 MAX_LOG_FILES=5000
 
-# 5. The Python command you want to run (enclosed in quotes)
+# 5. Read CUDA_VISIBLE_DEVICES from config.yaml if available
+if [ -f "train/config.yaml" ]; then
+    CUDA_DEVICES=$(grep -m1 "CUDA_VISIBLE_DEVICES:" train/config.yaml | sed "s/.*CUDA_VISIBLE_DEVICES: *['\"]\\([^'\"]*\\)['\"].*/\\1/")
+    if [ -n "$CUDA_DEVICES" ]; then
+        export CUDA_VISIBLE_DEVICES="$CUDA_DEVICES"
+        echo "Setting CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES from config.yaml"
+    fi
+fi
+
+# 6. The Python command you want to run (enclosed in quotes)
 PYTHON_COMMAND="python train/rollout.py"
 # Or a more complex command, for example:
 # PYTHON_COMMAND="python -m agentflow.verl algorithm.adv_estimator=grpo data.train_batch_size=8"
