@@ -1,13 +1,13 @@
 #!/bin/bash
 # Usage: bash exp/run_all_models_all_datasets.sh
 # Model format: "port:modelname,label,enabled_tools,tool_engines,model_engines"
-# Example: "8000:vllm-IPF/model1,label1,Tool1|Tool2,engine1|engine2,trainable|dashscope|dashscope"
+# Example: "8000:vllm-IPF/model1,label1,Tool1|Tool2,engine1|engine2,trainable|dashscope|dashscope|dashscope"
 # - port: VLLM server port (leave empty for API-based models)
 # - modelname: Model name (e.g., vllm-AgentFlow/agentflow-planner-7b)
 # - label: Human-readable label for results
 # - enabled_tools: Tools to enable (| separated)
 # - tool_engines: Engine for each tool (| separated)
-# - model_engines: [planner_main|planner_fixed|executor] - use "trainable" for components using the main model
+# - model_engines: [planner_main|planner_fixed|verifier|executor] - use "trainable" for components using the main model
 
 ############ Configuration ############
 # Get the directory where this script is located
@@ -34,19 +34,19 @@ TASKS=(
 # "port:modelname,label,enabled_tools,tool_engines,model_engines"
 # - enabled_tools: use | as separator (will be converted to comma)
 # - tool_engines: use | as separator (will be converted to comma)
-# - model_engines: use | as separator (will be converted to comma) - [planner_main|planner_fixed|executor]
+# - model_engines: use | as separator (will be converted to comma) - [planner_main|planner_fixed|verifier|executor]
 # - If port is empty (e.g., ":modelname"), base_url will not be passed to solver
-# Example with trainable planner: "8000:vllm-IPF/model,label,Tool1|Tool2,engine1|Default,trainable|dashscope|dashscope"
-# Example all fixed: ":dashscope,Dashscope,Tool1|Tool2,Default|Default,dashscope|dashscope|dashscope"
+# Example with trainable planner: "8000:vllm-IPF/model,label,Tool1|Tool2,engine1|Default,trainable|dashscope|dashscope|dashscope"
+# Example all fixed: ":dashscope,Dashscope,Tool1|Tool2,Default|Default,dashscope|dashscope|dashscope|dashscope"
 MODELS=(
     "8000:vllm-AgentFlow/agentflow-planner-7b,AgentFlow-7B,\
 Base_Generator_Tool|Python_Coder_Tool|Google_Search_Tool|Wikipedia_Search_Tool,\
 gpt-4o-mini|dashscope-qwen2.5-7b-coder-instruct|Default|Default,\
-trainable|dashscope|dashscope"
-#     ":dashscope-qwen2.5-7b-instruct,AgentFlow-7B,\
+trainable|dashscope|dashscope|dashscope"
+#     ":dashscope-qwen2.5-7b-instruct,Qwen2.5-7b-naive,\
 # Base_Generator_Tool|Python_Coder_Tool|Google_Search_Tool|Wikipedia_Search_Tool,\
 # dashscope-qwen2.5-7b-instruct|dashscope-qwen2.5-7b-instruct|Default|Default,\
-# trainable|dashscope|dashscope"
+# trainable|dashscope|dashscope|dashscope"
 )
 
 DATA_FILE_NAME="data.json"
@@ -71,7 +71,7 @@ for MODEL_SPEC in "${MODELS[@]}"; do
 
     # If MODEL_ENGINE is empty, use default
     if [ -z "$MODEL_ENGINE" ]; then
-        MODEL_ENGINE="trainable,dashscope,dashscope"
+        MODEL_ENGINE="trainable,dashscope,dashscope,dashscope"
     fi
 
     # Set BASE_URL only if PORT is not empty
@@ -152,7 +152,7 @@ for MODEL_SPEC in "${MODELS[@]}"; do
 
                 # Build command with conditional base_url parameter
                 if [ "$USE_BASE_URL" = true ]; then
-                    python solve.py \
+                    uv run python solve.py \
                     --index $i \
                     --task $TASK \
                     --data_file $DATA_FILE \
@@ -169,7 +169,7 @@ for MODEL_SPEC in "${MODELS[@]}"; do
                     --base_url "$BASE_URL" \
                     2>&1 | tee "$LOG_DIR/$i.log"
                 else
-                    python solve.py \
+                    uv run python solve.py \
                     --index $i \
                     --task $TASK \
                     --data_file $DATA_FILE \
@@ -199,7 +199,7 @@ for MODEL_SPEC in "${MODELS[@]}"; do
 
         ############ Calculate Scores ############
         RESPONSE_TYPE="direct_output"
-        python calculate_score_unified.py \
+        uv run python calculate_score_unified.py \
         --task_name $TASK \
         --data_file $DATA_FILE \
         --result_dir $OUT_DIR \

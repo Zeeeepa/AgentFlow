@@ -22,6 +22,7 @@ class Solver:
         planner,
         memory,
         executor,
+        verifier,
         task: str,
         data_file: str,
         task_description: str,
@@ -33,9 +34,10 @@ class Solver:
         max_tokens: int = 4000,
         output_json_dir: str = "results",
         root_cache_dir: str = "cache",
-        temperature: float = 0.7
+        temperature: float = 0.7,
     ):
         self.planner = planner
+        self.verifier = verifier
         self.memory = memory
         self.executor = executor
         self.task = task
@@ -240,15 +242,15 @@ class Solver:
                 memeory_actions = self.memory.get_actions()
 
                 # Verify memory
-                stop_verification = self.planner.verificate_context(
-                    question, 
-                    image_path, 
-                    query_analysis, 
+                stop_verification = self.verifier.verificate_context(
+                    question,
+                    image_path,
+                    query_analysis,
                     self.memory,
                     step_count,
-                    json_data 
+                    json_data
                 )
-                context_verification, conclusion = self.planner.extract_conclusion(stop_verification)
+                context_verification, conclusion = self.verifier.extract_conclusion(stop_verification)
                 
                 if self.verbose:
                     print(f"\n## [{step_count}] Stopping Verification:")
@@ -331,7 +333,7 @@ def parse_arguments():
     )
     parser.add_argument("--enabled_tools", default="Generalist_Solution_Generator_Tool", help="List of enabled tools.")
     parser.add_argument("--tool_engine", default="Default", help="List of tool engines corresponding to enabled_tools, separated by commas.")
-    parser.add_argument("--model_engine", default="trainable,dashscope,dashscope", help="Model engine configuration for [planner_main, planner_fixed, executor], separated by commas. Use 'trainable' for components that should use llm_engine_name.")
+    parser.add_argument("--model_engine", default="trainable,dashscope,dashscope,dashscope", help="Model engine configuration for [planner_main, planner_fixed, verifier, executor], separated by commas. Use 'trainable' for components that should use llm_engine_name.")
     parser.add_argument("--index", type=int, default=0, help="Index of the problem in the benchmark file.")
     parser.add_argument("--root_cache_dir", default="solver_cache", help="Path to solver cache directory.")
     parser.add_argument("--output_json_dir", default="results", help="Path to output JSON directory.")
@@ -349,27 +351,29 @@ def main(args):
     # Initialize Tools
     enabled_tools = args.enabled_tools.split(",") if args.enabled_tools else []
     tool_engine = args.tool_engine.split(",") if args.tool_engine else ["Default"]
-    model_engine = args.model_engine.split(",") if args.model_engine else ["trainable", "dashscope", "dashscope"]
+    model_engine = args.model_engine.split(",") if args.model_engine else ["trainable", "dashscope", "dashscope", "dashscope"]
     print(args.base_url, args.llm_engine_name)
 
     if len(tool_engine) < len(enabled_tools):
         tool_engine += ["Default"] * (len(enabled_tools) - len(tool_engine))
 
-    # Ensure model_engine has exactly 3 elements
-    if len(model_engine) != 3:
-        print(f"Warning: model_engine should have 3 elements [planner_main, planner_fixed, executor], got {len(model_engine)}. Using defaults.")
-        model_engine = ["trainable", "dashscope", "dashscope"]
+    # Ensure model_engine has exactly 4 elements
+    if len(model_engine) != 4:
+        print(f"Warning: model_engine should have 4 elements [planner_main, planner_fixed, verifier, executor], got {len(model_engine)}. Using defaults.")
+        model_engine = ["trainable", "dashscope", "dashscope", "dashscope"]
 
     # Parse model_engine configuration
-    # Format: [planner_main, planner_fixed, executor]
+    # Format: [planner_main, planner_fixed, verifier, executor]
     # "trainable" means use args.llm_engine_name (the trainable model)
     planner_main_engine = args.llm_engine_name if model_engine[0] == "trainable" else model_engine[0]
     planner_fixed_engine = args.llm_engine_name if model_engine[1] == "trainable" else model_engine[1]
-    executor_engine = args.llm_engine_name if model_engine[2] == "trainable" else model_engine[2]
+    verifier_engine = args.llm_engine_name if model_engine[2] == "trainable" else model_engine[2]
+    executor_engine = args.llm_engine_name if model_engine[3] == "trainable" else model_engine[3]
 
     print(f"Model Engine Configuration:")
     print(f"  - Planner Main: {planner_main_engine}")
     print(f"  - Planner Fixed: {planner_fixed_engine}")
+    print(f"  - Verifier: {verifier_engine}")
     print(f"  - Executor: {executor_engine}")
 
     # Instantiate Initializer
@@ -394,6 +398,18 @@ def main(args):
         temperature=args.temperature
     )
 
+    # Instantiate Verifier
+    from agentflow.models.verifier import Verifier
+    verifier = Verifier(
+        llm_engine_name=verifier_engine,
+        llm_engine_fixed_name=planner_fixed_engine,
+        toolbox_metadata=initializer.toolbox_metadata,
+        available_tools=initializer.available_tools,
+        verbose=args.verbose,
+        base_url=args.base_url if verifier_engine == args.llm_engine_name else None,
+        temperature=args.temperature
+    )
+
     # Instantiate Memory
     memory = Memory()
 
@@ -410,6 +426,7 @@ def main(args):
     # Instantiate Solver
     solver = Solver(
         planner=planner,
+        verifier=verifier,
         memory=memory,
         executor=executor,
         task=args.task,

@@ -5,6 +5,7 @@ from typing import Optional
 
 from agentflow.models.initializer import Initializer
 from agentflow.models.planner import Planner
+from agentflow.models.verifier import Verifier
 from agentflow.models.memory import Memory
 from agentflow.models.executor import Executor
 from agentflow.models.utils import make_json_serializable_truncated
@@ -13,6 +14,7 @@ class Solver:
     def __init__(
         self,
         planner,
+        verifier,
         memory,
         executor,
         output_types: str = "base,final,direct",
@@ -20,10 +22,11 @@ class Solver:
         max_time: int = 300,
         max_tokens: int = 4000,
         root_cache_dir: str = "cache",
-        verbose: bool = True, 
+        verbose: bool = True,
         temperature: float = .0
     ):
         self.planner = planner
+        self.verifier = verifier
         self.memory = memory
         self.executor = executor
         self.max_steps = max_steps
@@ -149,15 +152,15 @@ class Solver:
 
                 # [5] Verify memory (context verification)
                 local_start_time = time.time()
-                stop_verification = self.planner.verificate_context(
-                    question, 
-                    image_path, 
-                    query_analysis, 
+                stop_verification = self.verifier.verificate_context(
+                    question,
+                    image_path,
+                    query_analysis,
                     self.memory,
                     step_count,
                     json_data
                 )
-                context_verification, conclusion = self.planner.extract_conclusion(stop_verification)
+                context_verification, conclusion = self.verifier.extract_conclusion(stop_verification)
                 if self.verbose:
                     conclusion_emoji = "✅" if conclusion == 'STOP' else "🛑"
                     print(f"\n==> 🤖 Step {step_count}: Context Verification\n")
@@ -195,7 +198,7 @@ class Solver:
 def construct_solver(llm_engine_name : str = "gpt-4o",
                      enabled_tools : list[str] = ["all"],
                      tool_engine: list[str] = ["Default"],
-                     model_engine: list[str] = ["trainable", "dashscope", "dashscope"],  # [planner_main, planner_fixed, executor]
+                     model_engine: list[str] = ["trainable", "dashscope", "dashscope", "dashscope"],  # [planner_main, planner_fixed, verifier, executor]
                      output_types : str = "final,direct",
                      max_steps : int = 10,
                      max_time : int = 300,
@@ -208,11 +211,12 @@ def construct_solver(llm_engine_name : str = "gpt-4o",
                      ):
 
     # Parse model_engine configuration
-    # Format: [planner_main, planner_fixed, executor]
+    # Format: [planner_main, planner_fixed, verifier, executor]
     # "trainable" means use llm_engine_name (the trainable model)
     planner_main_engine = llm_engine_name if model_engine[0] == "trainable" else model_engine[0]
     planner_fixed_engine = llm_engine_name if model_engine[1] == "trainable" else model_engine[1]
-    executor_engine = llm_engine_name if model_engine[2] == "trainable" else model_engine[2]
+    verifier_engine = llm_engine_name if model_engine[2] == "trainable" else model_engine[2]
+    executor_engine = llm_engine_name if model_engine[3] == "trainable" else model_engine[3]
 
     # Instantiate Initializer
     initializer = Initializer(
@@ -234,6 +238,17 @@ def construct_solver(llm_engine_name : str = "gpt-4o",
         temperature=temperature
     )
 
+    # Instantiate Verifier
+    verifier = Verifier(
+        llm_engine_name=verifier_engine,
+        llm_engine_fixed_name=planner_fixed_engine,
+        toolbox_metadata=initializer.toolbox_metadata,
+        available_tools=initializer.available_tools,
+        verbose=verbose,
+        base_url=base_url if verifier_engine == llm_engine_name else None,
+        temperature=temperature
+    )
+
     # Instantiate Memory
     memory = Memory()
 
@@ -250,6 +265,7 @@ def construct_solver(llm_engine_name : str = "gpt-4o",
     # Instantiate Solver
     solver = Solver(
         planner=planner,
+        verifier=verifier,
         memory=memory,
         executor=executor,
         output_types=output_types,
